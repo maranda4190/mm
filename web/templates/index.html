@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI投资新闻监控</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        .news-card { transition: all 0.3s ease; }
+        .news-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .loading-dots { animation: pulse 2s infinite; }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="newsApp()" x-init="init()">
+    <!-- Header -->
+    <header class="gradient-bg shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-robot text-white text-3xl mr-3"></i>
+                    <h1 class="text-white text-2xl font-bold">AI投资新闻监控</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button @click="refreshNews()" 
+                            class="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors flex items-center"
+                            :disabled="loading">
+                        <i class="fas fa-sync-alt mr-2" :class="{'animate-spin': loading}"></i>
+                        刷新
+                    </button>
+                    <div class="text-white/80 text-sm">
+                        <i class="fas fa-clock mr-1"></i>
+                        <span x-text="lastUpdate"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4">
+            <div class="flex space-x-8">
+                <button @click="activeTab = 'all'" 
+                        class="py-4 px-2 border-b-2 transition-colors"
+                        :class="activeTab === 'all' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                    全部新闻
+                </button>
+                <button @click="activeTab = 'trending'" 
+                        class="py-4 px-2 border-b-2 transition-colors"
+                        :class="activeTab === 'trending' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                    热门话题
+                </button>
+                <button @click="activeTab = 'important'" 
+                        class="py-4 px-2 border-b-2 transition-colors"
+                        :class="activeTab === 'important' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                    重要新闻
+                </button>
+                <button @click="activeTab = 'categories'" 
+                        class="py-4 px-2 border-b-2 transition-colors"
+                        :class="activeTab === 'categories' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'">
+                    分类浏览
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Statistics Panel -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="bg-blue-500 rounded-lg p-3 mr-4">
+                        <i class="fas fa-newspaper text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">今日新闻</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="stats.todayNews"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="bg-green-500 rounded-lg p-3 mr-4">
+                        <i class="fas fa-dollar-sign text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">投资事件</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="stats.investmentEvents"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="bg-purple-500 rounded-lg p-3 mr-4">
+                        <i class="fas fa-fire text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">热门话题</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="stats.trendingTopics"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="bg-red-500 rounded-lg p-3 mr-4">
+                        <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">高重要性</p>
+                        <p class="text-2xl font-bold text-gray-800" x-text="stats.importantNews"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <input type="text" 
+                           x-model="searchQuery" 
+                           @input="searchNews()"
+                           placeholder="搜索新闻..."
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <select x-model="filterCategory" @change="filterNews()" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">所有分类</option>
+                    <option value="funding">融资</option>
+                    <option value="acquisition">收购</option>
+                    <option value="ipo">IPO</option>
+                    <option value="product">产品</option>
+                    <option value="partnership">合作</option>
+                    <option value="research">研究</option>
+                </select>
+                <select x-model="sortBy" @change="sortNews()" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="date">按时间排序</option>
+                    <option value="importance">按重要性排序</option>
+                    <option value="relevance">按相关性排序</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Content Sections -->
+        <div x-show="activeTab === 'all'" x-cloak>
+            <div x-show="loading" class="text-center py-12">
+                <div class="loading-dots">
+                    <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
+                    <p class="text-gray-600 mt-4">加载中...</p>
+                </div>
+            </div>
+
+            <div x-show="!loading && filteredNews.length === 0" class="text-center py-12">
+                <i class="fas fa-search text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600">暂无相关新闻</p>
+            </div>
+
+            <div class="grid gap-6" x-show="!loading && filteredNews.length > 0">
+                <template x-for="news in filteredNews" :key="news.id">
+                    <div class="news-card bg-white rounded-lg shadow hover:shadow-lg cursor-pointer"
+                         @click="openNewsDetail(news)">
+                        <div class="p-6">
+                            <!-- News Header -->
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex items-center space-x-2">
+                                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full" 
+                                          x-text="news.source"></span>
+                                    <span class="text-gray-500 text-sm" x-text="formatDate(news.published_date)"></span>
+                                    <span class="urgency-badge" 
+                                          :class="getUrgencyClass(news.analysis?.urgency)"
+                                          x-text="news.analysis?.urgency"></span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="score-indicator"
+                                         :class="getScoreClass(news.analysis?.overall_score)">
+                                        <span x-text="Math.round((news.analysis?.overall_score || 0) * 100)"></span>%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- News Title -->
+                            <h2 class="text-xl font-bold text-gray-900 mb-3 line-clamp-2" x-text="news.title"></h2>
+
+                            <!-- AI Summary -->
+                            <div x-show="news.analysis?.ai_summary" class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                                <p class="text-blue-800 text-sm font-medium">AI摘要</p>
+                                <p class="text-blue-700" x-text="news.analysis?.ai_summary"></p>
+                            </div>
+
+                            <!-- News Summary -->
+                            <p class="text-gray-600 mb-4 line-clamp-3" x-text="news.summary"></p>
+
+                            <!-- Key Points -->
+                            <div x-show="news.analysis?.key_points?.length" class="mb-4">
+                                <p class="text-sm font-medium text-gray-800 mb-2">关键要点：</p>
+                                <ul class="list-disc list-inside text-sm text-gray-600">
+                                    <template x-for="point in news.analysis.key_points.slice(0, 3)" :key="point">
+                                        <li x-text="point"></li>
+                                    </template>
+                                </ul>
+                            </div>
+
+                            <!-- Investment Info -->
+                            <div x-show="news.analysis?.funding_amount || news.analysis?.companies?.length" 
+                                 class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div x-show="news.analysis?.funding_amount">
+                                    <p class="text-sm font-medium text-gray-800">融资金额</p>
+                                    <p class="text-green-600 font-bold" x-text="'$' + news.analysis.funding_amount + (news.analysis.funding_round ? ' (' + news.analysis.funding_round + ')' : '')"></p>
+                                </div>
+                                <div x-show="news.analysis?.companies?.length">
+                                    <p class="text-sm font-medium text-gray-800">相关公司</p>
+                                    <p class="text-gray-600" x-text="news.analysis.companies.slice(0, 3).join(', ')"></p>
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                                <div class="flex items-center space-x-4">
+                                    <span class="category-tag" 
+                                          :class="getCategoryClass(news.analysis?.category)"
+                                          x-text="getCategoryText(news.analysis?.category)"></span>
+                                    <span class="text-sm text-gray-500">
+                                        相关性: <span x-text="Math.round((news.analysis?.relevance_score || 0) * 100)"></span>%
+                                    </span>
+                                </div>
+                                <a :href="news.link" target="_blank" 
+                                   class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                                   @click.stop>
+                                    阅读原文 <i class="fas fa-external-link-alt ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Trending Topics Tab -->
+        <div x-show="activeTab === 'trending'" x-cloak>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <template x-for="topic in trendingTopics" :key="topic.topic">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-lg" x-text="topic.topic"></h3>
+                            <span class="bg-red-100 text-red-800 text-sm px-2 py-1 rounded-full" 
+                                  x-text="topic.count + ' 条'"></span>
+                        </div>
+                        <div class="space-y-2">
+                            <template x-for="news in topic.latest_news" :key="news.id">
+                                <div class="border-l-2 border-blue-200 pl-3">
+                                    <p class="text-sm font-medium text-gray-800 line-clamp-2" x-text="news.title"></p>
+                                    <p class="text-xs text-gray-500" x-text="formatDate(news.published_date)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+
+    <!-- News Detail Modal -->
+    <div x-show="showModal" 
+         x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+         @click="closeModal()">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+             @click.stop>
+            <div class="p-6" x-show="selectedNews">
+                <!-- Modal Header -->
+                <div class="flex items-start justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 pr-4" x-text="selectedNews?.title"></h2>
+                    <button @click="closeModal()" 
+                            class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Content -->
+                <div class="prose prose-lg max-w-none">
+                    <p x-text="selectedNews?.content || selectedNews?.summary"></p>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="mt-6 pt-6 border-t border-gray-200 flex items-center justify-between">
+                    <div class="text-sm text-gray-500">
+                        <span x-text="selectedNews?.source"></span> • 
+                        <span x-text="formatDate(selectedNews?.published_date)"></span>
+                    </div>
+                    <a :href="selectedNews?.link" target="_blank" 
+                       class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        阅读原文
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function newsApp() {
+            return {
+                // State
+                loading: false,
+                activeTab: 'all',
+                news: [],
+                filteredNews: [],
+                trendingTopics: [],
+                searchQuery: '',
+                filterCategory: '',
+                sortBy: 'date',
+                lastUpdate: '从未',
+                showModal: false,
+                selectedNews: null,
+
+                // Statistics
+                stats: {
+                    todayNews: 0,
+                    investmentEvents: 0,
+                    trendingTopics: 0,
+                    importantNews: 0
+                },
+
+                // Initialize
+                async init() {
+                    await this.loadNews();
+                    this.startAutoRefresh();
+                },
+
+                // Load news data
+                async loadNews() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/news');
+                        const data = await response.json();
+                        this.news = data.news || [];
+                        this.filteredNews = [...this.news];
+                        this.updateStats();
+                        this.lastUpdate = new Date().toLocaleString('zh-CN');
+
+                        // Load trending topics
+                        const trendingResponse = await fetch('/api/trending');
+                        const trendingData = await trendingResponse.json();
+                        this.trendingTopics = trendingData.topics || [];
+                    } catch (error) {
+                        console.error('Error loading news:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                // Refresh news
+                async refreshNews() {
+                    await this.loadNews();
+                },
+
+                // Search news
+                searchNews() {
+                    this.filterAndSortNews();
+                },
+
+                // Filter news
+                filterNews() {
+                    this.filterAndSortNews();
+                },
+
+                // Sort news
+                sortNews() {
+                    this.filterAndSortNews();
+                },
+
+                // Filter and sort combined
+                filterAndSortNews() {
+                    let filtered = [...this.news];
+
+                    // Apply search filter
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        filtered = filtered.filter(news => 
+                            news.title.toLowerCase().includes(query) ||
+                            news.summary.toLowerCase().includes(query) ||
+                            (news.analysis?.companies || []).some(company => 
+                                company.toLowerCase().includes(query)
+                            )
+                        );
+                    }
+
+                    // Apply category filter
+                    if (this.filterCategory) {
+                        filtered = filtered.filter(news => 
+                            news.analysis?.category === this.filterCategory
+                        );
+                    }
+
+                    // Apply sorting
+                    if (this.sortBy === 'importance') {
+                        filtered.sort((a, b) => (b.analysis?.importance_score || 0) - (a.analysis?.importance_score || 0));
+                    } else if (this.sortBy === 'relevance') {
+                        filtered.sort((a, b) => (b.analysis?.relevance_score || 0) - (a.analysis?.relevance_score || 0));
+                    } else {
+                        filtered.sort((a, b) => new Date(b.published_date) - new Date(a.published_date));
+                    }
+
+                    this.filteredNews = filtered;
+                },
+
+                // Update statistics
+                updateStats() {
+                    const today = new Date().toDateString();
+                    this.stats.todayNews = this.news.filter(news => 
+                        new Date(news.published_date).toDateString() === today
+                    ).length;
+
+                    this.stats.investmentEvents = this.news.filter(news => 
+                        news.analysis?.funding_amount || 
+                        ['funding', 'acquisition', 'ipo'].includes(news.analysis?.category)
+                    ).length;
+
+                    this.stats.importantNews = this.news.filter(news => 
+                        (news.analysis?.importance_score || 0) > 0.7
+                    ).length;
+
+                    this.stats.trendingTopics = this.trendingTopics.length;
+                },
+
+                // Open news detail modal
+                openNewsDetail(news) {
+                    this.selectedNews = news;
+                    this.showModal = true;
+                },
+
+                // Close modal
+                closeModal() {
+                    this.showModal = false;
+                    this.selectedNews = null;
+                },
+
+                // Format date
+                formatDate(dateString) {
+                    return new Date(dateString).toLocaleString('zh-CN', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                },
+
+                // Get urgency class
+                getUrgencyClass(urgency) {
+                    switch (urgency) {
+                        case 'high': return 'bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full';
+                        case 'medium': return 'bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full';
+                        default: return 'bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full';
+                    }
+                },
+
+                // Get score class
+                getScoreClass(score) {
+                    const percentage = (score || 0) * 100;
+                    if (percentage >= 80) return 'bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold';
+                    if (percentage >= 60) return 'bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-bold';
+                    if (percentage >= 40) return 'bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-bold';
+                    return 'bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold';
+                },
+
+                // Get category class
+                getCategoryClass(category) {
+                    switch (category) {
+                        case 'funding': return 'bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full';
+                        case 'acquisition': return 'bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full';
+                        case 'ipo': return 'bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full';
+                        case 'product': return 'bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full';
+                        default: return 'bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full';
+                    }
+                },
+
+                // Get category text
+                getCategoryText(category) {
+                    const categoryMap = {
+                        'funding': '融资',
+                        'acquisition': '收购',
+                        'ipo': 'IPO',
+                        'product': '产品',
+                        'partnership': '合作',
+                        'research': '研究',
+                        'regulation': '监管'
+                    };
+                    return categoryMap[category] || '其他';
+                },
+
+                // Auto refresh
+                startAutoRefresh() {
+                    setInterval(() => {
+                        this.refreshNews();
+                    }, 30 * 60 * 1000); // 30 minutes
+                }
+            }
+        }
+    </script>
+</body>
+</html>
