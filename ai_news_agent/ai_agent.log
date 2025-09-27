@@ -1,0 +1,19 @@
+2025-09-27 06:56:20,762 - __main__ - INFO - 启动AI投资新闻Agent...
+2025-09-27 06:56:21,289 - __main__ - INFO - 服务器将在 http://0.0.0.0:8000 启动
+2025-09-27 06:56:21,289 - __main__ - INFO - 按 Ctrl+C 停止服务器
+2025-09-27 06:56:21,313 - ai_agent - INFO - 初始化AI投资新闻Agent...
+2025-09-27 06:56:21,313 - ai_agent - INFO - 开始获取和分析新闻...
+2025-09-27 06:56:21,790 - ai_agent - INFO - 获取到 4 条新闻
+2025-09-27 06:56:21,790 - ai_agent - INFO - 开始AI分析...
+2025-09-27 06:56:21,989 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-27 06:56:21,989 - ai_analyzer - ERROR - Error analyzing news item: Error code: 401 - {'error': {'message': 'Incorrect API key provided: demo_key********ting. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-27 06:56:22,552 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-27 06:56:22,553 - ai_analyzer - ERROR - Error analyzing news item: Error code: 401 - {'error': {'message': 'Incorrect API key provided: demo_key********ting. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-27 06:56:23,122 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-27 06:56:23,122 - ai_analyzer - ERROR - Error analyzing news item: Error code: 401 - {'error': {'message': 'Incorrect API key provided: demo_key********ting. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-27 06:56:23,703 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-27 06:56:23,703 - ai_analyzer - ERROR - Error analyzing news item: Error code: 401 - {'error': {'message': 'Incorrect API key provided: demo_key********ting. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-27 06:56:24,204 - ai_agent - INFO - 完成分析，共处理 4 条新闻
+2025-09-27 06:56:24,204 - ai_agent - INFO - Agent初始化成功
+2025-09-27 06:56:24,205 - ai_agent - INFO - 定时更新已启动，间隔: 30 分钟
+2025-09-27 06:56:24,205 - main - INFO - AI投资新闻Agent已启动
